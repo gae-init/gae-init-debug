@@ -1,14 +1,19 @@
 import sys
 sys.path.insert(0, 'lib.zip')
+sys.path.insert(0, 'libx')
 
 from google.appengine.api import mail
 import flask
 from flaskext import wtf
+from gae_mini_profiler import profiler
+from gae_mini_profiler import templatetags
 import config
+
 
 app = flask.Flask(__name__)
 app.config.from_object(config)
 app.jinja_env.line_statement_prefix = '#'
+
 
 import auth
 import util
@@ -33,6 +38,7 @@ class ProfileUpdateForm(wtf.Form):
       wtf.validators.optional(),
       wtf.validators.email('That does not look like an email'),
     ])
+  profiler = wtf.BooleanField('GAE Mini Profiler', [wtf.validators.optional()])
 
 
 @app.route('/_s/profile/', endpoint='profile_service')
@@ -44,11 +50,13 @@ def profile():
   if form.validate_on_submit():
     user_db.name = form.name.data
     user_db.email = form.email.data.lower()
+    user_db.profiler = form.profiler.data
     user_db.put()
     return flask.redirect(flask.url_for('welcome'))
   if not form.errors:
     form.name.data = user_db.name
     form.email.data = user_db.email or ''
+    form.profiler.data = user_db.profiler
 
   if flask.request.path.startswith('/_s/'):
     return util.jsonify_model_db(user_db)
@@ -161,3 +169,13 @@ def error_handler(e):
       html_class='error-page',
       error=e,
     ), e.code
+
+
+################################################################################
+# gae mini profiler
+################################################################################
+@app.context_processor
+def inject_profiler():
+  return dict(profiler_includes=templatetags.profiler_includes())
+
+app = profiler.ProfilerWSGIMiddleware(app)

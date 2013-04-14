@@ -39,6 +39,7 @@ class User(Base, modelx.UserX):
 
   active = ndb.BooleanProperty(default=True)
   admin = ndb.BooleanProperty(default=False)
+  profiler = ndb.BooleanProperty(default=False)
 
   federated_id = ndb.StringProperty(default='')
   facebook_id = ndb.StringProperty(default='')

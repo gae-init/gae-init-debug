@@ -8,6 +8,7 @@ builtins:
 - remote_api: on
 - deferred: on
 - appstats: on
+- admin_redirect: on
 
 libraries:
 - name: jinja2
@@ -17,6 +18,12 @@ handlers:
 - url: /(favicon\.ico|robots\.txt)
   static_files: static/\1
   upload: static/(.*)
+
+- url: /gae_mini_profiler/static
+  static_dir: libx/gae_mini_profiler/static
+
+- url: /gae_mini_profiler/.*
+  script: libx.gae_mini_profiler.main.application
 
 - url: /p/
   static_dir: static/
