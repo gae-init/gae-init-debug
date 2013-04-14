@@ -8,7 +8,6 @@ builtins:
 - remote_api: on
 - deferred: on
 - appstats: on
-- admin_redirect: on
 
 libraries:
 - name: jinja2
