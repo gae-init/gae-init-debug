@@ -115,7 +115,10 @@ def model_db_to_object(model_db):
   model_db_object = {}
   for prop in model_db._PROPERTIES:
     if prop == 'id':
-      value = json_value(getattr(model_db, 'key', None).id())
+      try:
+        value = json_value(getattr(model_db, 'key', None).id())
+      except:
+        value = None
     else:
       value = json_value(getattr(model_db, prop, None))
     if value is not None:
@@ -126,20 +129,21 @@ def model_db_to_object(model_db):
 def json_value(value):
   if type(value) == datetime:
     return format_datetime_utc(value)
-  elif type(value) == ndb.Key:
+  if type(value) == ndb.Key:
     return value.urlsafe()
-  elif type(value) == blobstore.BlobKey:
+  if type(value) == blobstore.BlobKey:
     return urllib.quote(str(value))
-  elif type(value) == ndb.GeoPt:
+  if type(value) == ndb.GeoPt:
     return '%s,%s' % (value.lat, value.lon)
-  elif type(value) == list:
+  if type(value) == list:
     return [json_value(v) for v in value]
-  elif type(value) == long:
+  if type(value) == long:
     # Big numbers are sent as strings for accuracy in JavaScript
     if value > 9007199254740992 or value < -9007199254740992:
       return str(value)
-  else:
-    return value
+  if isinstance(value, ndb.Model):
+    return model_db_to_object(value)
+  return value
 
 
 ################################################################################
