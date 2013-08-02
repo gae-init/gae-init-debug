@@ -19,10 +19,6 @@ Getting the code
 ----------------
 The easiest way to get the code is to fork it and then clone it.
 
-Or you can clone it directly using the command line:
-
-    $ hg clone https://bitbucket.org/lipis/gae-init project-name
-
 Running the build.py script (first time)
 ----------------------------------------
 
@@ -87,6 +83,7 @@ Contributions and Ideas
   - [ksymeon][]
   - [gmist][]
   - [stefanlindmark][]
+  - [joernhees][]
 
 Author
 ------
@@ -120,6 +117,7 @@ Author
 [ksymeon]: https://plus.google.com/102598378133436784997
 [gmist]: https://github.com/gmist
 [stefanlindmark]: http://www.linkedin.com/in/stefanlindmark
+[joernhees]: https://github.com/joernhees
 
 [lipisflair]: http://stackexchange.com/users/flair/5282.png
 [lipis]: http://stackoverflow.com/users/8418/lipis
