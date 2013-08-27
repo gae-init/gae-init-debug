@@ -1,15 +1,15 @@
-gae-init
-========
+gae-init-profiler
+=================
 
-**gae-init** is the easiest way to start new applications on Google App Engine
-using Flask, Bootstrap and tons of other cool features.
+**gae-init-profiler** is the easiest way to start new applications on Google App Engine
+using Flask, Bootstrap, gae_mini_profiler and tons of other cool features.
 
 
 Demo Page
 ---------
 
 The latest version is always accessible from:
-[http://gae-init.appspot.com](http://gae-init.appspot.com)
+[http://profiler.gae-init.appspot.com](http://gae-init.appspot.com)
 
 Documentation
 -------------
@@ -61,6 +61,7 @@ Tech Stack
   - [Bootstrap][]
   - [Font Awesome][]
   - [NProgress][]
+  - [gae_mini_profiler][]
 
 Requirements
 ------------
@@ -90,6 +91,7 @@ Author
 [docs]: http://docs.gae-init.appspot.com
 [flask]: http://flask.pocoo.org/
 [font awesome]: http://fortawesome.github.com/font-awesome/
+[gae_mini_profiler]: https://github.com/kamens/gae_mini_profiler
 [gmist]: https://github.com/gmist
 [google app engine sdk for python]: https://developers.google.com/appengine/downloads
 [google app engine]: https://developers.google.com/appengine/
