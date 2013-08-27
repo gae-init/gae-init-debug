@@ -1,6 +1,4 @@
-import sys
-sys.path.insert(0, 'lib.zip')
-sys.path.insert(0, 'libx')
+# -*- coding: utf-8 -*-
 
 from google.appengine.api import mail
 import flask
@@ -13,6 +11,7 @@ import config
 app = flask.Flask(__name__)
 app.config.from_object(config)
 app.jinja_env.line_statement_prefix = '#'
+app.jinja_env.line_comment_prefix = '##'
 
 
 import auth
