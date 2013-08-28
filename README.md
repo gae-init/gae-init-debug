@@ -1,15 +1,16 @@
-gae-init-profiler
-=================
+gae-init-debug
+==============
 
-**gae-init-profiler** is the easiest way to start new applications on Google App Engine
-using Flask, Bootstrap, gae_mini_profiler and tons of other cool features.
+**gae-init-debug** is the easiest way to start new applications on Google App Engine
+using Flask, Bootstrap, Flask Debug-toolbar, gae_mini_profiler and tons of other
+cool features.
 
 
 Demo Page
 ---------
 
 The latest version is always accessible from:
-[http://profiler.gae-init.appspot.com](http://gae-init.appspot.com)
+[http://debug.gae-init.appspot.com](http://debug.gae-init.appspot.com)
 
 Documentation
 -------------
@@ -61,6 +62,7 @@ Tech Stack
   - [Bootstrap][]
   - [Font Awesome][]
   - [NProgress][]
+  - [Flask Debug-toolbar][]
   - [gae_mini_profiler][]
 
 Requirements
@@ -89,6 +91,7 @@ Author
 [chris]: http://stackoverflow.com/users/226394/chris-top
 [coffeescript]: http://coffeescript.org/
 [docs]: http://docs.gae-init.appspot.com
+[flask debug-toolbar]: https://github.com/mgood/flask-debugtoolbar
 [flask]: http://flask.pocoo.org/
 [font awesome]: http://fortawesome.github.com/font-awesome/
 [gae_mini_profiler]: https://github.com/kamens/gae_mini_profiler

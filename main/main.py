@@ -5,14 +5,15 @@ import flask
 from flaskext import wtf
 from gae_mini_profiler import profiler
 from gae_mini_profiler import templatetags
+import flask_debugtoolbar
 import config
-
 
 app = flask.Flask(__name__)
 app.config.from_object(config)
 app.jinja_env.line_statement_prefix = '#'
 app.jinja_env.line_comment_prefix = '##'
 
+toolbar = flask_debugtoolbar.DebugToolbarExtension(app)
 
 import auth
 import util
