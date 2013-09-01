@@ -1,23 +1,25 @@
 # -*- coding: utf-8 -*-
 
 from google.appengine.api import mail
-import flask
 from flaskext import wtf
 from gae_mini_profiler import profiler
 from gae_mini_profiler import templatetags
+import flask
 import flask_debugtoolbar
+
 import config
+import model
+import util
 
 app = flask.Flask(__name__)
 app.config.from_object(config)
 app.jinja_env.line_statement_prefix = '#'
 app.jinja_env.line_comment_prefix = '##'
+app.jinja_env.globals.update(slugify=util.slugify)
 
 toolbar = flask_debugtoolbar.DebugToolbarExtension(app)
 
 import auth
-import util
-import model
 import admin
 
 
