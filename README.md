@@ -62,7 +62,7 @@ Tech Stack
   - [Bootstrap][]
   - [Font Awesome][]
   - [NProgress][]
-  - [Flask Debug-toolbar][]
+  - [Flask DebugToolbar][]
   - [gae_mini_profiler][]
 
 Requirements
@@ -91,7 +91,7 @@ Author
 [chris]: http://stackoverflow.com/users/226394/chris-top
 [coffeescript]: http://coffeescript.org/
 [docs]: http://docs.gae-init.appspot.com
-[flask debug-toolbar]: https://github.com/mgood/flask-debugtoolbar
+[flask debugtoolbar]: https://github.com/mgood/flask-debugtoolbar
 [flask]: http://flask.pocoo.org/
 [font awesome]: http://fortawesome.github.com/font-awesome/
 [gae_mini_profiler]: https://github.com/kamens/gae_mini_profiler
