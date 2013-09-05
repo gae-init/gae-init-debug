@@ -93,7 +93,7 @@ Author
 [docs]: http://docs.gae-init.appspot.com
 [flask debugtoolbar]: https://github.com/mgood/flask-debugtoolbar
 [flask]: http://flask.pocoo.org/
-[font awesome]: http://fortawesome.github.com/font-awesome/
+[font awesome]: http://fortawesome.github.com/Font-Awesome/
 [gae_mini_profiler]: https://github.com/kamens/gae_mini_profiler
 [gmist]: https://github.com/gmist
 [google app engine sdk for python]: https://developers.google.com/appengine/downloads
