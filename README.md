@@ -5,18 +5,11 @@ gae-init-debug
 using Flask, Bootstrap, Flask Debug-toolbar, gae_mini_profiler and tons of other
 cool features.
 
+Read more in the [docs][], where you can find a complete [feature list][],
+a detailed [tutorial][] on how to build a phonebook application and more..
 
-Demo Page
----------
-
-The latest version is always accessible from:
+The latest version is always accessible from
 [http://debug.gae-init.appspot.com](http://debug.gae-init.appspot.com)
-
-Documentation
--------------
-
-Visit the [docs][] page for more information, where you can
-also find a detailed [tutorial][] on how to build a phonebook application.
 
 Running the Development Environment
 -----------------------------------
@@ -99,6 +92,7 @@ Author
 [coffeescript]: http://coffeescript.org/
 [docs]: http://docs.gae-init.appspot.com
 [flask debugtoolbar]: https://github.com/mgood/flask-debugtoolbar
+[feature list]: http://docs.gae-init.appspot.com/features/
 [flask]: http://flask.pocoo.org/
 [font awesome]: http://fortawesome.github.com/Font-Awesome/
 [gae_mini_profiler]: https://github.com/kamens/gae_mini_profiler
