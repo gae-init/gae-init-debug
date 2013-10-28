@@ -1,9 +1,9 @@
 gae-init-debug
 ==============
 
-**gae-init-debug** is the easiest way to start new applications on Google App Engine
-using Flask, Bootstrap, Flask Debug-toolbar, gae_mini_profiler and tons of other
-cool features.
+**gae-init-debug** is the easiest way to start new applications on Google
+App Engine using Flask, Bootstrap, Flask Debug-toolbar, gae_mini_profiler
+and tons of other cool features.
 
 Read more in the [docs][], where you can find a complete [feature list][],
 a detailed [tutorial][] on how to build a phonebook application and more..
