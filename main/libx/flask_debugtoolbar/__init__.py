@@ -8,10 +8,12 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.urls import url_quote_plus
 
 from flask_debugtoolbar.toolbar import DebugToolbar
+from flask_debugtoolbar.compat import iteritems
 from flask import Blueprint
 
 
 module = Blueprint('debugtoolbar', __name__)
+
 
 def replace_insensitive(string, target, replacement):
     """Similar to string.replace() but is case insensitive
@@ -26,13 +28,9 @@ def replace_insensitive(string, target, replacement):
 
 
 def _printable(value):
-    if isinstance(value, unicode):
-        return value.encode('unicode_escape')
-    elif isinstance(value, str):
-        return value.encode('string_escape')
     try:
         return repr(value)
-    except Exception, e:
+    except Exception as e:
         return '<repr(%s) raised %s: %s>' % (
                object.__repr__(value), type(e).__name__, e)
 
@@ -43,29 +41,9 @@ class DebugToolbarExtension(object):
 
     _redirect_codes = [301, 302, 303, 304]
 
-    def __init__(self, app):
+    def __init__(self, app=None):
         self.app = app
         self.debug_toolbars = {}
-        self.hosts = ()
-
-        if not app.config.get('DEBUG_TB_ENABLED', app.debug):
-            return
-
-        if not app.config.get('SECRET_KEY'):
-            raise RuntimeError(
-                "The Flask-DebugToolbar requires the 'SECRET_KEY' config "
-                "var to be set")
-
-        DebugToolbar.load_panels(app)
-
-        self.hosts = app.config.get('DEBUG_TB_HOSTS', ())
-
-        self.app.before_request(self.process_request)
-        self.app.after_request(self.process_response)
-        self.app.teardown_request(self.teardown_request)
-
-        # Monkey-patch the Flask.dispatch_request method
-        app.dispatch_request = self.dispatch_request
 
         # Configure jinja for the internal templates and add url rules
         # for static data
@@ -76,10 +54,52 @@ class DebugToolbarExtension(object):
         self.jinja_env.filters['urlencode'] = url_quote_plus
         self.jinja_env.filters['printable'] = _printable
 
+        if app is not None:
+            self.init_app(app)
+
+    def init_app(self, app):
+        for k, v in iteritems(self._default_config(app)):
+            app.config.setdefault(k, v)
+
+        if not app.config['DEBUG_TB_ENABLED']:
+            return
+
+        if not app.config.get('SECRET_KEY'):
+            raise RuntimeError(
+                "The Flask-DebugToolbar requires the 'SECRET_KEY' config "
+                "var to be set")
+
+        DebugToolbar.load_panels(app)
+
+        app.before_request(self.process_request)
+        app.after_request(self.process_response)
+        app.teardown_request(self.teardown_request)
+
+        # Monkey-patch the Flask.dispatch_request method
+        app.dispatch_request = self.dispatch_request
+
         app.add_url_rule('/_debug_toolbar/static/<path:filename>',
             '_debug_toolbar.static', self.send_static_file)
 
         app.register_blueprint(module, url_prefix='/_debug_toolbar/views')
+
+    def _default_config(self, app):
+        return {
+            'DEBUG_TB_ENABLED': app.debug,
+            'DEBUG_TB_HOSTS': (),
+            'DEBUG_TB_INTERCEPT_REDIRECTS': True,
+            'DEBUG_TB_PANELS': (
+                'flask_debugtoolbar.panels.versions.VersionDebugPanel',
+                'flask_debugtoolbar.panels.timer.TimerDebugPanel',
+                'flask_debugtoolbar.panels.headers.HeaderDebugPanel',
+                'flask_debugtoolbar.panels.request_vars.RequestVarsDebugPanel',
+                'flask_debugtoolbar.panels.config_vars.ConfigVarsDebugPanel',
+                'flask_debugtoolbar.panels.template.TemplateDebugPanel',
+                'flask_debugtoolbar.panels.sqlalchemy.SQLAlchemyDebugPanel',
+                'flask_debugtoolbar.panels.logger.LoggingPanel',
+                'flask_debugtoolbar.panels.profiler.ProfilerDebugPanel',
+            ),
+        }
 
     def dispatch_request(self):
         """Modified version of Flask.dispatch_request to call process_view."""
@@ -105,10 +125,11 @@ class DebugToolbarExtension(object):
 
     def _show_toolbar(self):
         """Return a boolean to indicate if we need to show the toolbar."""
-        if request.path.startswith('/_debug_toolbar/'):
+        if request.blueprint == 'debugtoolbar':
             return False
 
-        if self.hosts and request.remote_addr not in self.hosts:
+        hosts = current_app.config['DEBUG_TB_HOSTS']
+        if hosts and request.remote_addr not in hosts:
             return False
 
         return True
@@ -148,7 +169,7 @@ class DebugToolbarExtension(object):
 
         # Intercept http redirect codes and display an html page with a
         # link to the target.
-        if self.debug_toolbars[real_request].config['DEBUG_TB_INTERCEPT_REDIRECTS']:
+        if current_app.config['DEBUG_TB_INTERCEPT_REDIRECTS']:
             if (response.status_code in self._redirect_codes and
                 not real_request.is_xhr):
                 redirect_to = response.location
