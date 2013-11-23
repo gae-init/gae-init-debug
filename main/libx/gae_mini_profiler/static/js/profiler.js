@@ -9,12 +9,19 @@ var GaeMiniProfiler = {
                SIMPLE: "simple",
                CPU_INSTRUMENTED: "instrumented",
                CPU_SAMPLING: "sampling",
+               CPU_LINEBYLINE: "linebyline",
                RPC_ONLY: "rpc",
                RPC_AND_CPU_INSTRUMENTED: "rpc_instrumented",
-               RPC_AND_CPU_SAMPLING: "rpc_sampling"
+               RPC_AND_CPU_SAMPLING: "rpc_sampling",
+               RPC_AND_CPU_LINEBYLINE: "rpc_linebyline"
     },
 
     init: function(requestId, fShowImmediately) {
+        var hide = +$.cookiePlugin("g-m-p-hide");
+        if (hide && !fShowImmediately) {
+            return;
+        }
+
         // Fetch profile results for any ajax calls
         // (see http://code.google.com/p/mvc-mini-profiler/source/browse/MvcMiniProfiler/UI/Includes.js)
         $(document).ajaxComplete(function (e, xhr, settings) {
@@ -99,11 +106,20 @@ var GaeMiniProfiler = {
     },
 
     /**
+     * True if profiler mode has enabled CPU line-by-line profiling
+     */
+    isLineByLineEnabled: function(mode) {
+        return (mode == this.modes.CPU_LINEBYLINE ||
+                mode == this.modes.RPC_AND_CPU_LINEBYLINE);
+    },
+
+    /**
      * True if either CPU instrumentation or CPU sampling is enabled
      */
     isCpuEnabled: function(mode) {
         return (GaeMiniProfiler.isInstrumentedEnabled(mode) ||
-                GaeMiniProfiler.isSamplingEnabled(mode));
+                GaeMiniProfiler.isSamplingEnabled(mode) ||
+                GaeMiniProfiler.isLineByLineEnabled(mode));
     },
 
     appendRedirectIds: function(requestId, queryString) {
@@ -319,9 +335,10 @@ var GaeMiniProfiler = {
         var cpuSelector = "#cpu_disabled";
         if (this.isInstrumentedEnabled(mode)) {
             cpuSelector = "#cpu_instrumented";
-        }
-        else if (this.isSamplingEnabled(mode)) {
+        } else if (this.isSamplingEnabled(mode)) {
             cpuSelector = "#cpu_sampling";
+        } else if (this.isLineByLineEnabled(mode)) {
+            cpuSelector = "#cpu_linebyline";
         }
 
         var rpcSelector = "#rpc_disabled";
