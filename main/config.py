@@ -2,7 +2,7 @@
 
 import os
 try:
-  # This part is surrounded in try/except because the this config.py file is
+  # This part is surrounded in try/except because the config.py file is
   # also used in the run.py script which is used to compile/minify the client
   # side files (*.less, *.coffee, *.js) and is not aware of the GAE
   import model
@@ -16,7 +16,7 @@ try:
 except:
   pass
 
-PRODUCTION = os.environ.get('SERVER_SOFTWARE', '').startswith('Google App Engine')
+PRODUCTION = os.environ.get('SERVER_SOFTWARE', '').startswith('Google App Eng')
 DEVELOPMENT = not PRODUCTION
 DEBUG = DEVELOPMENT
 
@@ -33,9 +33,9 @@ DEBUG_TB_PANELS = [
     'flask_debugtoolbar.panels.profiler.ProfilerDebugPanel',
   ]
 
-################################################################################
+###############################################################################
 # Client modules, also used by the run.py script.
-################################################################################
+###############################################################################
 STYLES = [
     'src/style/style.less',
   ]
@@ -61,6 +61,7 @@ SCRIPTS = {
         'src/script/common/service.coffee',
         'src/script/site/app.coffee',
         'src/script/site/profile.coffee',
+        'src/script/site/user.coffee',
         'src/script/site/admin.coffee',
       ],
   }

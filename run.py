@@ -10,9 +10,9 @@ import sys
 import time
 
 
-################################################################################
+###############################################################################
 # Options
-################################################################################
+###############################################################################
 parser = argparse.ArgumentParser()
 parser.add_argument('-w', '--watch', dest='watch', action='store_true',
     help='watch files for changes when running the development web server',
@@ -39,9 +39,9 @@ parser.add_argument('-f', '--flush', dest='flush', action='store_true',
 args = parser.parse_args()
 
 
-################################################################################
+###############################################################################
 # Directories
-################################################################################
+###############################################################################
 DIR_MAIN = 'main'
 DIR_STATIC = 'static'
 DIR_SRC = 'src'
@@ -85,9 +85,9 @@ file_uglifyjs = os.path.join(dir_bin, FILE_UGLIFYJS)
 dir_storage = os.path.join(DIR_TEMP, DIR_STORAGE)
 
 
-################################################################################
+###############################################################################
 # Helpers
-################################################################################
+###############################################################################
 def print_out(script, filename=''):
   timestamp = datetime.now().strftime('%H:%M:%S')
   if not filename:
@@ -234,9 +234,14 @@ def update_missing_args():
     args.clean = True
 
 
-################################################################################
+def uniq(seq):
+  seen = set()
+  return [e for e in seq if e not in seen and not seen.add(e)]
+
+
+###############################################################################
 # Main
-################################################################################
+###############################################################################
 SCRIPTS = config.SCRIPTS
 STYLES = config.STYLES
 
@@ -270,8 +275,9 @@ if args.minify:
     compile_style(os.path.join(dir_static, source), dir_min_style)
 
   for module in config.SCRIPTS:
+    scripts = uniq(config.SCRIPTS[module])
     coffees = ' '.join([os.path.join(dir_static, script)
-        for script in config.SCRIPTS[module] if script.endswith('.coffee')
+        for script in scripts if script.endswith('.coffee')
       ])
 
     pretty_js = os.path.join(dir_min_script, '%s.js' % module)
@@ -280,7 +286,7 @@ if args.minify:
 
     if len(coffees):
       os_execute(file_coffee, '--join -cp', coffees, pretty_js, append=True)
-    for script in config.SCRIPTS[module]:
+    for script in scripts:
       if not script.endswith('.js'):
         continue
       script_file = os.path.join(dir_static, script)
