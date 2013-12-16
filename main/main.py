@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from google.appengine.api import mail
 import logging
-from werkzeug import exceptions
-from flaskext import wtf
+
+from flask.ext import wtf
 from gae_mini_profiler import profiler
 from gae_mini_profiler import templatetags
+from google.appengine.api import mail
+from werkzeug import exceptions
 import flask
 import flask_debugtoolbar
 
@@ -18,12 +19,16 @@ app.config.from_object(config)
 app.jinja_env.line_statement_prefix = '#'
 app.jinja_env.line_comment_prefix = '##'
 app.jinja_env.globals.update(slugify=util.slugify)
-
 toolbar = flask_debugtoolbar.DebugToolbarExtension(app)
 
+import admin
 import auth
 import user
-import admin
+
+
+if config.DEVELOPMENT:
+  from werkzeug import debug
+  app.wsgi_app = debug.DebuggedApplication(app.wsgi_app, evalex=True)
 
 
 ###############################################################################
@@ -98,7 +103,7 @@ class FeedbackForm(wtf.Form):
     )
   email = wtf.StringField('Email (optional)',
       [wtf.validators.optional(), wtf.validators.email()],
-      filters=[util.strip_filter],
+      filters=[util.email_filter],
     )
 
 
@@ -107,7 +112,7 @@ def feedback():
   if not config.CONFIG_DB.feedback_email:
     return flask.abort(418)
 
-  form = FeedbackForm()
+  form = FeedbackForm(obj=auth.current_user_db())
   if form.validate_on_submit():
     mail.send_mail(
         sender=config.CONFIG_DB.feedback_email,
@@ -121,8 +126,6 @@ def feedback():
       )
     flask.flash('Thank you for your feedback!', category='success')
     return flask.redirect(flask.url_for('welcome'))
-  if not form.errors and auth.current_user_id() > 0:
-    form.email.data = auth.current_user_db().email
 
   return flask.render_template(
       'feedback.html',
@@ -143,7 +146,6 @@ def feedback():
 @app.errorhandler(410)  # Gone
 @app.errorhandler(418)  # I'm a Teapot
 @app.errorhandler(500)  # Internal Server Error
-@app.errorhandler(Exception)
 def error_handler(e):
   logging.exception(e)
   try:
@@ -169,9 +171,15 @@ def error_handler(e):
     ), e.code
 
 
-################################################################################
+if config.PRODUCTION:
+  @app.errorhandler(Exception)
+  def production_error_handler(e):
+    return error_handler(e)
+
+
+###############################################################################
 # gae mini profiler
-################################################################################
+###############################################################################
 @app.context_processor
 def inject_profiler():
   return dict(profiler_includes=templatetags.profiler_includes())
