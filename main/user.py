@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import logging
-
 from flask.ext import wtf
 from google.appengine.ext import ndb
 import flask
@@ -34,7 +32,7 @@ def user_list():
 
   return flask.render_template(
       'user/user_list.html',
-      html_class='user',
+      html_class='user-list',
       title='User List',
       user_dbs=user_dbs,
       more_url=util.generate_more_url(more_cursor),
@@ -57,6 +55,8 @@ class UserUpdateForm(wtf.Form):
       [wtf.validators.optional(), wtf.validators.email()],
       filters=[util.email_filter],
     )
+  admin = wtf.BooleanField('Admin')
+  active = wtf.BooleanField('Active')
 
 
 @app.route('/user/<int:user_id>/update/', methods=['GET', 'POST'])
@@ -74,6 +74,9 @@ def user_update(user_id):
       form.username.errors.append('This username is taken.')
     else:
       form.populate_obj(user_db)
+      if auth.current_user_id() == user_db.key.id():
+        user_db.admin = True
+        user_db.active = True
       user_db.put()
       return flask.redirect(flask.url_for('user_list', order='-modified'))
 
@@ -119,4 +122,4 @@ def is_username_available(username, self_db=None):
       limit=2,
     )
   c = len(user_dbs)
-  return not (c == 2 or (c == 1 and self_db and self_db.key != user_dbs[0].key))
+  return not (c == 2 or c == 1 and self_db and self_db.key != user_dbs[0].key)

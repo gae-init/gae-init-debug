@@ -6,12 +6,10 @@ from flask.ext import wtf
 from gae_mini_profiler import profiler
 from gae_mini_profiler import templatetags
 from google.appengine.api import mail
-from werkzeug import exceptions
 import flask
 import flask_debugtoolbar
 
 import config
-import model
 import util
 
 app = flask.Flask(__name__)
@@ -150,7 +148,7 @@ def error_handler(e):
   logging.exception(e)
   try:
     e.code
-  except AttributeError as err:
+  except AttributeError:
     e.code = 500
     e.name = 'Internal Server Error'
 
