@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import urlparse
+import base64
 
 try:
     import threading
@@ -131,6 +132,25 @@ class Mode(object):
                 Mode.CPU_LINEBYLINE,
                 Mode.RPC_AND_CPU_LINEBYLINE]
 
+class RawSharedStatsHandler(RequestHandler):
+    def get(self):
+        request_id = self.request.get("request_id")
+        request_stats = RequestStats.get(request_id)
+
+        if not request_stats:
+            self.response.out.write("Profiler stats no longer exist for this request.")
+            return
+
+        if not 'raw_stats' in request_stats.profiler_results:
+            self.response.out.write("No raw states available for this profile")
+            return
+
+        self.response.headers['Content-Disposition'] = (
+                'attachment; filename="g-m-p-%s.profile"' % str(request_id))
+        self.response.headers['Content-type'] = "application/octet-stream"
+        self.response.out.write(
+                base64.b64decode(request_stats.profiler_results['raw_stats']))
+
 
 class SharedStatsHandler(RequestHandler):
 
@@ -244,7 +264,7 @@ class RequestStatsHandler(RequestHandler):
 
 class RequestStats(object):
 
-    serialized_properties = ["request_id", "url", "url_short", "s_dt",
+    serialized_properties = ["request_id", "url", "s_dt",
                              "profiler_results", "appstats_results", "mode",
                              "temporary_redirect", "logs",
                              "logging_request_id"]
@@ -261,10 +281,6 @@ class RequestStats(object):
         if environ.get("QUERY_STRING"):
             self.url += "?%s" % environ.get("QUERY_STRING")
 
-        self.url_short = self.url
-        if len(self.url_short) > 26:
-            self.url_short = self.url_short[:26] + "..."
-
         self.mode = profiler.mode
         self.s_dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -279,6 +295,11 @@ class RequestStats(object):
         # Store compressed results so we stay under the memcache 1MB limit
         pickled = pickle.dumps(self)
         compressed_pickled = zlib.compress(pickled)
+        if len(compressed_pickled) > memcache.MAX_VALUE_SIZE:
+            logging.warning('RequestStats bigger (%d) '
+                + 'than max memcache size (%d), even after compression',
+                len(compressed_pickled), memcache.MAX_VALUE_SIZE)
+            return False
 
         return memcache.set(RequestStats.memcache_key(self.request_id), compressed_pickled)
 

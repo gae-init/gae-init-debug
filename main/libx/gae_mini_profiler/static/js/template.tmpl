@@ -4,8 +4,15 @@
 
 <script id="profilerCornerEntryTemplate" type="text/x-jquery-tmpl">
     <div class="entry">
-        {{if temporary_redirect}}&#8623;{{/if}}
-        ${profiler_results.total_time} <span class="ms">ms</span>
+        <div class="entry-icons">
+            {{if temporary_redirect}}&#8623;{{/if}}
+            {{if appstats_results.likely_dupes}}
+                <span class="likely-duplicates" title="Duplicate RPCs">D</span>
+            {{/if}}
+        </div>
+        <div class="total-time">
+            ${profiler_results.total_time} <span class="ms">ms</span>
+        </div>
     </div>
 </script>
 
@@ -19,6 +26,7 @@
                 <strong>Loading request</strong>
             </span> &mdash;
         {{/if}}
+
         <a href="/gae_mini_profiler/shared?request_id=${encodeURIComponent(request_id)}">Share request profile</a>
     </span>
 </script>
@@ -26,11 +34,8 @@
 <script id="profilerTemplate" type="text/x-jquery-tmpl">
     <div class="g-m-p" style="display:none;">
         <div class="title">
-            <span class="url" title="${url}">
-                ${url_short}
-            </span>
-            <div class="total">
-                ${profiler_results.total_time} <span class="ms">ms</span>
+            <div class="header">
+                ${profiler_results.total_time} <span class="ms">ms</span>: <span class="url" title="${url}">${url}</span>
             </div>
         </div>
 
@@ -97,6 +102,7 @@
 
         <div class="profiler-details details fancy-scrollbar" style="display:none;">
             {{if GaeMiniProfiler.isInstrumentedEnabled(mode)}}
+            <a class="download-profile-link" href="/gae_mini_profiler/shared/raw?request_id=${encodeURIComponent(request_id)}" class="uses_script">Download raw profile</a>
 
             <table>
                 <thead>

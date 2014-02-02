@@ -1,4 +1,4 @@
-ainimport os
+import os
 
 from flask import current_app, request, g
 from flask.globals import _request_ctx_stack
