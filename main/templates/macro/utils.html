@@ -1,8 +1,10 @@
 # macro order_by_link(property, title, ignore=['cursor'])
   # if request.args.get('order') == property
-    <a href="{{update_query_argument('order', '-' + property, ignore)}}">{{title}} <i class="fa fa-chevron-up"></i></a>
+    <a href="{{update_query_argument('order', '-' + property, ignore)}}">{{title}}</a>
+    <i class="fa fa-chevron-up text-muted"></i>
   # elif request.args.get('order') == '-' + property
-    <a href="{{update_query_argument('order', property, ignore)}}">{{title}} <i class="fa fa-chevron-down"></i></a>
+    <a href="{{update_query_argument('order', property, ignore)}}">{{title}}</a>
+    <i class="fa fa-chevron-down text-muted"></i>
   #else
     <a href="{{update_query_argument('order', property, ignore)}}">{{title}}</a>
   #endif
@@ -22,10 +24,10 @@
 # endmacro
 
 
-# macro next_link(more_url, caption='Next Page')
+# macro next_link(more_url, caption=None)
   # if more_url
     <ul class="pager">
-      <li><a href="{{more_url}}" rel="nofollow">{{caption}}</a></li>
+      <li><a href="{{more_url}}" rel="nofollow">{{caption if caption else 'Next Page'}}</a></li>
     </ul>
   # endif
 # endmacro
