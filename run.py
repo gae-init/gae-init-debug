@@ -23,8 +23,7 @@ PARSER.add_argument(
   )
 PARSER.add_argument(
     '-c', '--clean', dest='clean', action='store_true',
-    help='''recompiles files when running the development web server, but
-    obsolete if -s is used''',
+    help='recompiles files when running the development web server',
   )
 PARSER.add_argument(
     '-C', '--clean-all', dest='clean_all', action='store_true',
@@ -157,14 +156,14 @@ def compile_style(source, target_dir, check_modified=False):
   if not os.path.isfile(source):
     print_out('NOT FOUND', source)
     return
-
-  target = source.replace(DIR_SRC_STYLE, target_dir).replace('.less', '.css')
-  minified = ''
   if not source.endswith('.less'):
     return
+
+  target = source.replace(DIR_SRC_STYLE, target_dir).replace('.less', '.css')
   if check_modified and not is_style_modified(target):
     return
 
+  minified = ''
   if target_dir == DIR_MIN_STYLE:
     minified = '-x'
     target = target.replace('.css', '.min.css')
@@ -202,8 +201,8 @@ def is_style_modified(target):
 def compile_all_dst():
   for source in config.STYLES:
     compile_style(os.path.join(DIR_STATIC, source), DIR_DST_STYLE, True)
-  for module in config.SCRIPTS:
-    for source in config.SCRIPTS[module]:
+  for module, scripts in config.SCRIPTS:
+    for source in scripts:
       compile_script(os.path.join(DIR_STATIC, source), DIR_DST_SCRIPT)
 
 
@@ -214,9 +213,9 @@ def update_path_separators():
   for idx in xrange(len(config.STYLES)):
     config.STYLES[idx] = fixit(config.STYLES[idx])
 
-  for module in config.SCRIPTS:
-    for idx in xrange(len(config.SCRIPTS[module])):
-      config.SCRIPTS[module][idx] = fixit(config.SCRIPTS[module][idx])
+  for module, scripts in config.SCRIPTS:
+    for idx in xrange(len(scripts)):
+      scripts[idx] = fixit(scripts[idx])
 
 
 def internet_on():
@@ -246,7 +245,7 @@ def install_dependencies():
 
   for dependency in get_dependencies('bower.json'):
     if not os.path.exists(os.path.join(DIR_BOWER_COMPONENTS, dependency)):
-      os.system('"%s" bower' % FILE_GRUNT)
+      os.system('"%s" ext' % FILE_GRUNT)
       break
 
 
@@ -289,8 +288,8 @@ def run_minify():
   for source in config.STYLES:
     compile_style(os.path.join(DIR_STATIC, source), DIR_MIN_STYLE)
 
-  for module in config.SCRIPTS:
-    scripts = uniq(config.SCRIPTS[module])
+  for module, scripts in config.SCRIPTS:
+    scripts = uniq(scripts)
     coffees = ' '.join([
         os.path.join(DIR_STATIC, script)
         for script in scripts if script.endswith('.coffee')
