@@ -1,6 +1,7 @@
+# coding: utf-8
+
 import os
 import sys
-sys.path.insert(0, 'libx')
 
 if os.environ.get('SERVER_SOFTWARE', '').startswith('Google App Engine'):
   sys.path.insert(0, 'lib.zip')
@@ -11,6 +12,7 @@ else:
   re_ = re.compile(re_)
   stubs.FakeFile._skip_files = re_
   sys.path.insert(0, 'lib')
+sys.path.insert(0, 'libx')
 
 
 def gae_mini_profiler_should_profile_production():

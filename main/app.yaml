@@ -9,6 +9,9 @@ builtins:
 - deferred: on
 - appstats: on
 
+inbound_services:
+- warmup
+
 libraries:
 - name: jinja2
   version: latest
@@ -22,15 +25,21 @@ handlers:
   static_files: static/robots.txt
   upload: static/robots.txt
 
+- url: /p/(.*\.ttf)
+  static_files: static/\1
+  upload: static/(.*\.ttf)
+  mime_type: font/ttf
+  expiration: 1000d
+
+- url: /p/
+  static_dir: static/
+  expiration: 1000d
+
 - url: /gae_mini_profiler/static
   static_dir: libx/gae_mini_profiler/static
 
 - url: /gae_mini_profiler/.*
   script: libx.gae_mini_profiler.main.application
-
-- url: /p/
-  static_dir: static/
-  expiration: 1000d
 
 - url: /.*
   script: main.app

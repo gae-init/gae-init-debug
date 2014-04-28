@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 
 import logging
 
@@ -125,6 +125,15 @@ def feedback():
       html_class='feedback',
       form=form,
     )
+
+
+###############################################################################
+# Warmup request
+###############################################################################
+@app.route('/_ah/warmup')
+def warmup():
+  # TODO: put your warmup code here
+  return 'success'
 
 
 ###############################################################################
