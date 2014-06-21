@@ -20,15 +20,11 @@ the question, "Where is the time spent by my app?"
 
 from collections import defaultdict
 import logging
-import os
 import sys
 import time
 import threading
-import traceback
 
 from . import util
-
-_is_dev_server = os.environ["SERVER_SOFTWARE"].startswith("Devel")
 
 class InspectingThread(threading.Thread):
     """Thread that periodically triggers profiler inspections."""
@@ -40,9 +36,10 @@ class InspectingThread(threading.Thread):
         self.profile = profile
 
     def stop(self):
-        """Stop this thread."""
+        """Signal the thread to stop and block until it is finished."""
         # http://stackoverflow.com/questions/323972/is-there-any-way-to-kill-a-thread-in-python
         self._stop_event.set()
+        self.join()
 
     def should_stop(self):
         return self._stop_event.is_set()
@@ -51,26 +48,59 @@ class InspectingThread(threading.Thread):
         """Start periodic profiler inspections.
         
         This will run, periodically inspecting and then sleeping, until
-        manually stopped via stop()."""
+        manually stopped via stop().
+
+        We try to "stay on schedule" by keeping track of the time we should be
+        at and sleeping until that time. This means that if we stop running for
+        a while due to context switching or other pauses, we'll start sampling
+        faster to catch up, so we'll get the right number of samples in the
+        end, but the samples may not be perfectly even."""
+
+        next_sample_time_seconds = time.time()
+
         # Keep sampling until this thread is explicitly stopped.
         while not self.should_stop():
-
             # Take a sample of the main request thread's frame stack...
             self.profile.take_sample()
 
             # ...then sleep and let it do some more work.
-            time.sleep(1.0 / InspectingThread.SAMPLES_PER_SECOND)
-
-            # Only take one sample per thread if this is running on the
-            # single-threaded dev server.
-            if _is_dev_server and len(self.profile.samples) > 0:
-                break
+            next_sample_time_seconds += (
+                1.0 / InspectingThread.SAMPLES_PER_SECOND)
+            seconds_to_sleep = next_sample_time_seconds - time.time()
+            if seconds_to_sleep > 0:
+                time.sleep(seconds_to_sleep)
 
 
 class ProfileSample(object):
     """Single stack trace sample gathered during a periodic inspection."""
-    def __init__(self, stack):
-        self.stack_trace = traceback.extract_stack(stack)
+    def __init__(self, stack_trace, timestamp_ms):
+        # stack_trace should be a list of (filename, line_num, function_name)
+        # triples.
+        self.stack_trace = stack_trace
+        self.timestamp_ms = timestamp_ms
+
+    @staticmethod
+    def from_frame_and_timestamp(active_frame, timestamp_ms):
+        """Creates a profile from the current frame of a particular thread.
+
+        The "active_frame" parameter should be the current frame from some
+        thread, as returned by sys._current_frames(). Note that we must walk
+        the stack trace up-front at sampling time, since it will change out
+        from under us if we wait to access it."""
+        stack_trace = []
+        frame = active_frame
+        while frame is not None:
+            code = frame.f_code
+            stack_trace.append(
+                (code.co_filename, frame.f_lineno, code.co_name))
+            frame = frame.f_back
+
+        return ProfileSample(stack_trace, timestamp_ms)
+
+    def get_frame_descriptions(self):
+        """Gets a list of text descriptions, one for each frame, in order."""
+        return ["%s:%s (%s)" % file_line_func
+                for file_line_func in self.stack_trace]
 
 
 class Profile(object):
@@ -85,73 +115,56 @@ class Profile(object):
         # Thread that constantly waits, inspects, waits, inspect, ...
         self.inspecting_thread = None
 
+        self.start_time = time.time()
+
     def results(self):
         """Return sampling results in a dictionary for template context."""
         aggregated_calls = defaultdict(int)
         total_samples = len(self.samples)
 
+        # Compress the results by keeping an array of all of the frame
+        # descriptions (we expect that there won't be that many total of them).
+        # Each actual stack trace is given as an ordered list of indexes into
+        # the array of frames.
+        frames = []
+        frame_indexes = {}
+
         for sample in self.samples:
-            for filename, line_num, function_name, src in sample.stack_trace:
-                aggregated_calls["%s\n\n%s:%s (%s)" %
-                        (src, filename, line_num, function_name)] += 1
+            for frame_desc in sample.get_frame_descriptions():
+                if not frame_desc in frame_indexes:
+                    frame_indexes[frame_desc] = len(frames)
+                    frames.append(frame_desc)
 
-        # Turn aggregated call samples into dictionary of results
-        calls = [{
-            "func_desc": item[0],
-            "func_desc_short": util.short_method_fmt(item[0]),
-            "count_samples": item[1],
-            "per_samples": "%s%%" % util.decimal_fmt(
-                100.0 * item[1] / total_samples),
-            } for item in aggregated_calls.items()]
-
-        # Sort call sample results by # of times calls appeared in a sample
-        calls = sorted(calls, reverse=True,
-            key=lambda call: call["count_samples"])
+        samples = [{
+                "timestamp_ms": util.milliseconds_fmt(sample.timestamp_ms, 1),
+                "stack_frames": [frame_indexes[desc]
+                                 for desc in sample.get_frame_descriptions()]
+            } for sample in self.samples]
 
         return {
-                "calls": calls,
+                "frame_names": [
+                    util.short_method_fmt(frame) for frame in frames],
+                "samples": samples,
                 "total_samples": total_samples,
-                "is_dev_server": _is_dev_server,
             }
 
     def take_sample(self):
         # Look at stacks of all existing threads...
         # See http://bzimmer.ziclix.com/2008/12/17/python-thread-dumps/
-        for thread_id, stack in sys._current_frames().items():
-
+        for thread_id, active_frame in sys._current_frames().items():
             # ...but only sample from the main request thread.
-
-            if _is_dev_server:
-                # In development, current_request_thread_id won't be set
-                # properly. threading.current_thread().ident always returns -1
-                # in dev. So instead, we just take a peek at the stack's
-                # current package to figure out if it is the request thread.
-                # Even though the dev server is single-threaded,
-                # sys._current_frames will return multiple threads, because
-                # some of them are spawned by the App Engine dev server for
-                # internal purposes. We don't want to sample these internal dev
-                # server threads -- we want to sample the thread that is
-                # running the current request. Since the dev server will be
-                # running this sampling code immediately from the run() code
-                # below, we can spot this thread's stack by looking at its
-                # global namespace (f_globals) and making sure it's currently
-                # in the gae_mini_profiler package.
-                should_sample = (stack.f_globals["__package__"] ==
-                        "gae_mini_profiler")
-            else:
-                # In production, current_request_thread_id will be set properly
-                # by threading.current_thread().ident.
-                # TODO(kamens): this profiler will need work if we ever
-                # actually use multiple threads in a single request and want to
-                # profile more than one of them.
-                should_sample = thread_id == self.current_request_thread_id
-
-            if should_sample:
+            # TODO(kamens): this profiler will need work if we ever
+            # actually use multiple threads in a single request and want to
+            # profile more than one of them.
+            if thread_id == self.current_request_thread_id:
                 # Grab a sample of this thread's current stack
-                self.samples.append(ProfileSample(stack))
+                timestamp_ms = (time.time() - self.start_time) * 1000
+                self.samples.append(ProfileSample.from_frame_and_timestamp(
+                        active_frame, timestamp_ms))
 
     def run(self, fxn):
         """Run function with samping profiler enabled, saving results."""
+
         if not hasattr(threading, "current_thread"):
             # Sampling profiler is not supported in Python2.5
             logging.warn("The sampling profiler is not supported in Python2.5")

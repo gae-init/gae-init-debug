@@ -266,9 +266,18 @@ var GaeMiniProfiler = {
                 .click(function() { GaeMiniProfiler.toggleSettings(this); return false; }).end()
             .find(".settings input")
                 .change(function() { GaeMiniProfiler.setCookieMode(this); return false; }).end()
+            .find(".sample-number-slider")
+                .on("input", function() { GaeMiniProfiler.updateSampleNumber(this, data); }).end()
+            .find(".ignore-frames-slider")
+                .on("input", function() { GaeMiniProfiler.updateSampleNumber(this, data); }).end()
             .click(function(e) { e.stopPropagation(); })
             .css("left", jCorner.offset().left + jCorner.outerWidth())
             .show();
+
+        var jSampleSlider = jPopup.find(".sample-number-slider");
+        if (jSampleSlider.length) {
+            this.updateSampleNumber(jSampleSlider.get(0), data);
+        }
 
         var toggleLogRows = function(level) {
             var names = {10:'Debug', 20:'Info', 30:'Warning', 40:'Error', 50:'Critical'};
@@ -375,7 +384,6 @@ var GaeMiniProfiler = {
                         .tablesorter()
                         .data("table-sorted", true);
                 }
-
             });
         }
     },
@@ -419,22 +427,104 @@ var GaeMiniProfiler = {
                     );
         }
         return null;
+    },
+
+    /**
+     * Update the table of stack frames with the stack trace for the currently
+     * selected sample. This requires rebuilding the stack information from the
+     * compressed format given in the profiler results.
+     */
+    updateSampleNumber: function(element, data) {
+        var searchRoot = $(element).closest(".g-m-p");
+        var jSlider = searchRoot.find(".sample-number-slider");
+        var jTable = searchRoot.find(".sample-table");
+        var jSampleTimestamp = searchRoot.find(".sample-timestamp");
+        var jIgnoreFramesInput = searchRoot.find(".ignore-frames-slider");
+        var jIgnoredFrames = searchRoot.find(".sample-num-frames-ignored");
+        var jTableBody = jTable.find("tbody");
+
+        // Each element of the samples array contains an ordered array of
+        // indexes into the frameNames array, one for each stack frame.
+        var frameNames = data.profiler_results.frame_names;
+        var samples = data.profiler_results.samples;
+
+        var sampleIndex = jSlider.val();
+        var minFrameToDisplay = jIgnoreFramesInput.val();
+
+        jSampleTimestamp.html(samples[sampleIndex].timestamp_ms + "ms");
+        jIgnoredFrames.html(minFrameToDisplay);
+
+        GaeMiniProfiler.buildSampleTable(jTable,
+                samples[sampleIndex].stack_frames, frameNames,
+                minFrameToDisplay);
+    },
+
+    /**
+     * Builds the table that displays the stack trace for the currently
+     * selected sample.
+     */
+    buildSampleTable: function(jTable, compressedStack, frameNames,
+            minFrameToDisplay) {
+        var jTableBody = jTable.find("tbody");
+        jTableBody.empty();
+
+        // Ideally, tableSorter would automatically sort the list in the user's
+        // specified sort order, but that ends up being really tricky because
+        // the refresh happens asynchronously and it's easy to accidentally
+        // break tableSorter's internal state. See this page for a discussion
+        // of a number of hacky solutions:
+        // https://forum.jquery.com/topic/dynamically-updating-tablesorter-two-problems
+        //
+        // In our case, we want to avoid any kind of flicker, and really the
+        // only use case that we care about is reverse-sorting the stack
+        // frames, so we just do the "sorting" manually by checking the user's
+        // sort preference and rendering in that direction.
+        var reverseOrder = false;
+        if (jTable.length && jTable.get(0).config) {
+            var sortList = jTable.get(0).config.sortList;
+            // Match on the [0, 0] array (column 0, ascending).
+            if (sortList.length > 0 && sortList[0][0] === 0 &&
+                    sortList[0][1] === 0) {
+                reverseOrder = true;
+            }
+        }
+
+        for (var i = 0; i < compressedStack.length; i++) {
+            var index = reverseOrder ? compressedStack.length - i - 1 : i;
+            var frameName = frameNames[compressedStack[index]];
+            var depth = compressedStack.length - index - 1;
+            if (depth < minFrameToDisplay) {
+                continue;
+            }
+            jTableBody.append("<tr><td>" + depth + "</td>" +
+                    "<td>" + frameName + "</td></tr>");
+        }
+
+        jTable.trigger("update");
     }
 };
 
 var GaeMiniProfilerTemplate = {
-
-    template: null,
+    _promise: null,
 
     init: function(callback) {
-        $.get("/gae_mini_profiler/static/js/template.tmpl", function (data) {
+        // We only make one request to fetch the template, even though init is
+        // called many times
+        if (!this._promise) {
+            this._promise = $.get("/gae_mini_profiler/static/js/template.tmpl",
+                function(data) {
+                    if (data) {
+                        $('body').append(data);
+                    }
+                });
+        }
+
+        this._promise.then(function(data) {
             if (data) {
-                $('body').append(data);
                 callback();
             }
         });
     }
-
 };
 
 /*
