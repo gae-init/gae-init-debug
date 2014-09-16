@@ -15,10 +15,12 @@ app = flask.Flask(__name__)
 app.config.from_object(config)
 app.jinja_env.line_statement_prefix = '#'
 app.jinja_env.line_comment_prefix = '##'
-app.jinja_env.globals.update(check_form_fields=util.check_form_fields)
-app.jinja_env.globals.update(is_iterable=util.is_iterable)
-app.jinja_env.globals.update(slugify=util.slugify)
-app.jinja_env.globals.update(update_query_argument=util.update_query_argument)
+app.jinja_env.globals.update(
+    check_form_fields=util.check_form_fields,
+    is_iterable=util.is_iterable,
+    slugify=util.slugify,
+    update_query_argument=util.update_query_argument,
+  )
 toolbar = flask_debugtoolbar.DebugToolbarExtension(app)
 
 import admin
@@ -75,7 +77,11 @@ def profile():
   form = ProfileUpdateForm(obj=user_db)
 
   if form.validate_on_submit():
+    send_verification = not user_db.token or user_db.email != form.email.data
     form.populate_obj(user_db)
+    if send_verification:
+      user_db.verified = False
+      task.verify_email_notification(user_db)
     user_db.put()
     return flask.redirect(flask.url_for('welcome'))
 

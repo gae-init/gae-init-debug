@@ -8,6 +8,7 @@ from flask.ext import oauth
 from google.appengine.api import users
 from google.appengine.ext import ndb
 import flask
+import unidecode
 
 import config
 import model
@@ -218,6 +219,7 @@ def retrieve_user_from_google(google_user):
       re.sub(r'_+|-+|\.+', ' ', google_user.email().split('@')[0]).title(),
       google_user.email(),
       google_user.email(),
+      verified=True,
       admin=users.is_current_user_admin(),
     )
 
@@ -337,8 +339,9 @@ def retrieve_user_from_facebook(response):
   return create_user_db(
       auth_id,
       response['name'],
-      response['username'] if 'username' in response else response['id'],
-      response['email'],
+      response.get('username', response['name']),
+      response.get('email', ''),
+      verified=bool(response.get('email', '')),
     )
 
 
@@ -353,8 +356,9 @@ def decorator_order_guard(f, decorator_name):
       )
 
 
-def create_user_db(auth_id, name, username, email='', **params):
-  username = re.sub(r'_+|-+|\s+', '.', username.split('@')[0].lower().strip())
+def create_user_db(auth_id, name, username, email='', verified=False, **params):
+  username = unidecode.unidecode(username.split('@')[0].lower()).strip()
+  username = re.sub(r'[\W_]+', '.', username)
   new_username = username
   n = 1
   while not model.User.is_username_available(new_username):
@@ -366,6 +370,8 @@ def create_user_db(auth_id, name, username, email='', **params):
       email=email.lower(),
       username=new_username,
       auth_ids=[auth_id],
+      verified=verified,
+      token=util.uuid(),
       **params
     )
   user_db.put()
