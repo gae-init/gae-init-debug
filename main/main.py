@@ -7,6 +7,7 @@ from gae_mini_profiler import profiler
 from gae_mini_profiler import templatetags
 import flask
 import flask_debugtoolbar
+import wtforms
 
 import config
 import util
@@ -25,6 +26,7 @@ toolbar = flask_debugtoolbar.DebugToolbarExtension(app)
 
 import admin
 import auth
+import model
 import task
 import user
 
@@ -32,6 +34,7 @@ import user
 if config.DEVELOPMENT:
   from werkzeug import debug
   app.wsgi_app = debug.DebuggedApplication(app.wsgi_app, evalex=True)
+  app.testing = True
 
 
 ###############################################################################
@@ -60,11 +63,13 @@ def sitemap():
 # Profile stuff
 ###############################################################################
 class ProfileUpdateForm(wtf.Form):
-  name = wtf.StringField('Name',
-      [wtf.validators.required()], filters=[util.strip_filter],
+  name = wtforms.StringField(
+      'Name',
+      [wtforms.validators.required()], filters=[util.strip_filter],
     )
-  email = wtf.StringField('Email',
-      [wtf.validators.optional(), wtf.validators.email()],
+  email = wtforms.StringField(
+      'Email',
+      [wtforms.validators.optional(), wtforms.validators.email()],
       filters=[util.email_filter],
     )
 
@@ -77,13 +82,18 @@ def profile():
   form = ProfileUpdateForm(obj=user_db)
 
   if form.validate_on_submit():
-    send_verification = not user_db.token or user_db.email != form.email.data
-    form.populate_obj(user_db)
-    if send_verification:
-      user_db.verified = False
-      task.verify_email_notification(user_db)
-    user_db.put()
-    return flask.redirect(flask.url_for('welcome'))
+    email = form.email.data
+    if email and not user_db.is_email_available(email, user_db.key):
+      form.email.errors.append('This email is already taken.')
+
+    if not form.errors:
+      send_verification = not user_db.token or user_db.email != email
+      form.populate_obj(user_db)
+      if send_verification:
+        user_db.verified = False
+        task.verify_email_notification(user_db)
+      user_db.put()
+      return flask.redirect(flask.url_for('welcome'))
 
   if flask.request.path.startswith('/_s/'):
     return util.jsonify_model_db(user_db)
@@ -102,16 +112,16 @@ def profile():
 # Feedback
 ###############################################################################
 class FeedbackForm(wtf.Form):
-  subject = wtf.StringField('Subject',
-      [wtf.validators.required()], filters=[util.strip_filter],
+  message = wtforms.TextAreaField(
+      'Message',
+      [wtforms.validators.required()], filters=[util.strip_filter],
     )
-  message = wtf.TextAreaField('Message',
-      [wtf.validators.required()], filters=[util.strip_filter],
-    )
-  email = wtf.StringField('Your email (optional)',
-      [wtf.validators.optional(), wtf.validators.email()],
+  email = wtforms.StringField(
+      'Your email (optional)',
+      [wtforms.validators.optional(), wtforms.validators.email()],
       filters=[util.email_filter],
     )
+  recaptcha = wtf.RecaptchaField('Are you human?')
 
 
 @app.route('/feedback/', methods=['GET', 'POST'])
@@ -120,10 +130,12 @@ def feedback():
     return flask.abort(418)
 
   form = FeedbackForm(obj=auth.current_user_db())
+  if not config.CONFIG_DB.has_anonymous_recaptcha or auth.is_logged_in():
+    del form.recaptcha
   if form.validate_on_submit():
     body = '%s\n\n%s' % (form.message.data, form.email.data)
     kwargs = {'reply_to': form.email.data} if form.email.data else {}
-    task.send_mail_notification(form.subject.data, body, **kwargs)
+    task.send_mail_notification('%s...' % body[:48].strip(), body, **kwargs)
     flask.flash('Thank you for your feedback!', category='success')
     return flask.redirect(flask.url_for('welcome'))
 

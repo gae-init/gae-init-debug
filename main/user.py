@@ -5,6 +5,7 @@ import copy
 from flask.ext import wtf
 from google.appengine.ext import ndb
 import flask
+import wtforms
 
 import auth
 import model
@@ -42,21 +43,25 @@ def user_list():
 # User Update
 ###############################################################################
 class UserUpdateForm(wtf.Form):
-  username = wtf.StringField('Username',
-      [wtf.validators.required(), wtf.validators.length(min=3)],
+  username = wtforms.StringField(
+      'Username',
+      [wtforms.validators.required(), wtforms.validators.length(min=3)],
       filters=[util.email_filter],
     )
-  name = wtf.StringField('Name',
-      [wtf.validators.required()], filters=[util.strip_filter],
+  name = wtforms.StringField(
+      'Name',
+      [wtforms.validators.required()], filters=[util.strip_filter],
     )
-  email = wtf.StringField('Email',
-      [wtf.validators.optional(), wtf.validators.email()],
+  email = wtforms.StringField(
+      'Email',
+      [wtforms.validators.optional(), wtforms.validators.email()],
       filters=[util.email_filter],
     )
-  admin = wtf.BooleanField('Admin')
-  active = wtf.BooleanField('Active')
-  verified = wtf.BooleanField('Verified')
-  permissions = wtf.SelectMultipleField('Permissions',
+  admin = wtforms.BooleanField('Admin')
+  active = wtforms.BooleanField('Active')
+  verified = wtforms.BooleanField('Verified')
+  permissions = wtforms.SelectMultipleField(
+      'Permissions',
       filters=[util.sort_filter],
     )
 
@@ -87,7 +92,7 @@ def user_update(user_id):
   if form.validate_on_submit():
     if not util.is_valid_username(form.username.data):
       form.username.errors.append('This username is invalid.')
-    elif not model.User.is_username_available(form.username.data, user_db):
+    elif not model.User.is_username_available(form.username.data, user_db.key):
       form.username.errors.append('This username is already taken.')
     else:
       form.populate_obj(user_db)
@@ -116,13 +121,14 @@ def user_update(user_id):
 def user_verify(token):
   user_db = auth.current_user_db()
   if user_db.token != token:
-    flask.flash('This token is invalid or expired.', category='danger')
-    return flask.redirect(flask.url_for('profile', token=token))
+    flask.flash('That link is either invalid or expired.', category='danger')
+    return flask.redirect(flask.url_for('profile'))
   user_db.verified = True
   user_db.token = util.uuid()
   user_db.put()
   flask.flash('Hooray! Your email is now verified.', category='success')
   return flask.redirect(flask.url_for('profile'))
+
 
 ###############################################################################
 # User Delete
@@ -148,14 +154,16 @@ def delete_user_dbs(user_db_keys):
 # User Merge
 ###############################################################################
 class UserMergeForm(wtf.Form):
-  user_key = wtf.StringField('User Key', [wtf.validators.required()])
-  user_keys = wtf.StringField('User Keys', [wtf.validators.required()])
-  username = wtf.StringField('Username', [wtf.validators.optional()])
-  name = wtf.StringField('Name (merged)',
-      [wtf.validators.required()], filters=[util.strip_filter],
+  user_key = wtforms.StringField('User Key', [wtforms.validators.required()])
+  user_keys = wtforms.StringField('User Keys', [wtforms.validators.required()])
+  username = wtforms.StringField('Username', [wtforms.validators.optional()])
+  name = wtforms.StringField(
+      'Name (merged)',
+      [wtforms.validators.required()], filters=[util.strip_filter],
     )
-  email = wtf.StringField('Email (merged)',
-      [wtf.validators.optional(), wtf.validators.email()],
+  email = wtforms.StringField(
+      'Email (merged)',
+      [wtforms.validators.optional(), wtforms.validators.email()],
       filters=[util.email_filter],
     )
 
@@ -207,7 +215,7 @@ def user_merge():
     merged_user_db.auth_ids = auth_ids
     merged_user_db.put()
 
-    deprecated_keys = [key for key in user_db_keys if key != merged_user_db.key]
+    deprecated_keys = [k for k in user_db_keys if k != merged_user_db.key]
     merge_user_dbs(merged_user_db, deprecated_keys)
     return flask.redirect(
         flask.url_for('user_update', user_id=merged_user_db.key.id()),
@@ -231,6 +239,7 @@ def merge_user_dbs(user_db, deprecated_keys):
   for deprecated_db in deprecated_dbs:
     deprecated_db.auth_ids = []
     deprecated_db.active = False
+    deprecated_db.verified = False
     if not deprecated_db.username.startswith('_'):
       deprecated_db.username = '_%s' % deprecated_db.username
   ndb.put_multi(deprecated_dbs)
