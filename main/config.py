@@ -30,8 +30,10 @@ else:
   SECRET_KEY = CONFIG_DB.flask_secret_key.encode('ascii')
   RECAPTCHA_PUBLIC_KEY = CONFIG_DB.recaptcha_public_key
   RECAPTCHA_PRIVATE_KEY = CONFIG_DB.recaptcha_private_key
+  RECAPTCHA_LIMIT = 8
 
 DEFAULT_DB_LIMIT = 64
+SIGNIN_RETRY_LIMIT = 4
 
 DEBUG_TB_ENABLED = DEVELOPMENT
 DEBUG_TB_INTERCEPT_REDIRECTS = False
@@ -43,6 +45,7 @@ DEBUG_TB_PANELS = [
     'flask_debugtoolbar.panels.logger.LoggingPanel',
     'flask_debugtoolbar.panels.profiler.ProfilerDebugPanel',
   ]
+
 
 ###############################################################################
 # Client modules, also used by the run.py script.
@@ -69,7 +72,7 @@ SCRIPTS = [
         'src/script/site/app.coffee',
         'src/script/site/admin.coffee',
         'src/script/site/profile.coffee',
-        'src/script/site/signin.coffee',
+        'src/script/site/auth.coffee',
         'src/script/site/user.coffee',
       ]),
   ]

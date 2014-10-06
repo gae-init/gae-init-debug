@@ -6,18 +6,17 @@
       <b class="caret"></b>
     </a>
     <ul class="dropdown-menu">
-      <li><a href="{{url_for('profile')}}"><i class="fa fa-fw fa-edit"></i> Profile Settings</a></li>
+      <li><a href="{{url_for('profile')}}"><i class="fa fa-fw fa-user"></i> Profile</a></li>
       # if current_user.admin
         <li class="divider"></li>
-        <li><a href="{{url_for('admin_config_update')}}"><i class="fa fa-fw fa-cog"></i> Admin Config</a></li>
-        <li><a href="{{url_for('user_list', order='-modified', active=True)}}"><i class="fa fa-fw fa-group"></i> User List</a></li>
+        <li><a href="{{url_for('admin')}}"><i class="fa fa-fw fa-cog"></i> Admin</a></li>
         <li class="divider"></li>
       # endif
       <li><a href="{{url_for('signout')}}"><i class="fa fa-fw fa-sign-out"></i> Sign out</a></li>
     </ul>
   </li>
 # else
-  <li class="{{'active' if html_class == 'signin'}}">
+  <li class="{{'active' if html_class.find('auth') != -1}}">
     <a href="{{url_for('signin')}}"><i class="fa fa-sign-in"></i> Sign in</a>
   </li>
 # endif
