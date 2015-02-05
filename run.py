@@ -417,8 +417,13 @@ def check_for_update():
 
 
 def print_out_update():
-  import pip
-  SemVer = pip.util.version.SemanticVersion
+  try:
+    import pip
+    SemVer = pip.util.version.SemanticVersion
+  except AttributeError:
+    import pip._vendor.distlib.version
+    SemVer = pip._vendor.distlib.version.SemanticVersion
+
   try:
     with open(FILE_UPDATE, 'r') as update_json:
       data = json.load(update_json)
