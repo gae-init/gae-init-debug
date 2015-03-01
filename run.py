@@ -405,7 +405,8 @@ def check_for_update():
     if last == today:
       return
   try:
-    open(FILE_UPDATE, 'wa').close()
+    with open(FILE_UPDATE, 'a'):
+      os.utime(FILE_UPDATE, None)
     request = urllib2.Request(
         CORE_VERSION_URL,
         urllib.urlencode({'version': main.__version__}),
@@ -613,7 +614,7 @@ def run_start():
   clear = 'yes' if ARGS.flush else 'no'
   port = int(ARGS.port)
   run_command = ' '.join(map(str, [
-      '"%s"' % os.path.join(find_gae_path(), 'dev_appserver.py'),
+      '"dev_appserver.py"',
       DIR_MAIN,
       '--host %s' % ARGS.host,
       '--port %s' % port,
