@@ -23,6 +23,7 @@ else:
     import calendar
     CURRENT_VERSION_TIMESTAMP = calendar.timegm(datetime.utcnow().timetuple())
   CURRENT_VERSION_DATE = datetime.utcfromtimestamp(CURRENT_VERSION_TIMESTAMP)
+  USER_AGENT = '%s/%s' % (APPLICATION_ID, CURRENT_VERSION_ID)
 
   import model
   CONFIG_DB = model.Config.get_master_db()
@@ -33,6 +34,7 @@ else:
 
 DEFAULT_DB_LIMIT = 64
 SIGNIN_RETRY_LIMIT = 4
+TAG_SEPARATOR = ' '
 
 DEBUG_TB_ENABLED = DEVELOPMENT
 DEBUG_TB_INTERCEPT_REDIRECTS = False
