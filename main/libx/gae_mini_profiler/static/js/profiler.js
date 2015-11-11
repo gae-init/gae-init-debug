@@ -9,10 +9,12 @@ var GaeMiniProfiler = {
                SIMPLE: "simple",
                CPU_INSTRUMENTED: "instrumented",
                CPU_SAMPLING: "sampling",
+               CPU_MEMORY_SAMPLING: "memory_sampling",
                CPU_LINEBYLINE: "linebyline",
                RPC_ONLY: "rpc",
                RPC_AND_CPU_INSTRUMENTED: "rpc_instrumented",
                RPC_AND_CPU_SAMPLING: "rpc_sampling",
+               RPC_AND_CPU_MEMORY_SAMPLING: "rpc_memory_sampling",
                RPC_AND_CPU_LINEBYLINE: "rpc_linebyline"
     },
 
@@ -43,7 +45,7 @@ var GaeMiniProfiler = {
     getCookieMode: function() {
         var mode = $.cookiePlugin("g-m-p-mode");
 
-        // Default to RPC + Instrumented
+        // Default to RPC only
         var valid = false;
         for (var key in this.modes) {
             if (mode == this.modes[key]) {
@@ -52,7 +54,7 @@ var GaeMiniProfiler = {
             }
         }
         if (!valid) {
-            mode = this.modes.RPC_AND_CPU_INSTRUMENTED;
+            mode = this.modes.RPC_ONLY;
         }
 
         return mode;
@@ -86,7 +88,8 @@ var GaeMiniProfiler = {
     isRpcEnabled: function(mode) {
         return (mode == this.modes.RPC_ONLY ||
                 mode == this.modes.RPC_AND_CPU_INSTRUMENTED ||
-                mode == this.modes.RPC_AND_CPU_SAMPLING);
+                mode == this.modes.RPC_AND_CPU_SAMPLING ||
+                mode == this.modes.RPC_AND_CPU_MEMORY_SAMPLING);
     },
 
     /**
@@ -102,7 +105,17 @@ var GaeMiniProfiler = {
      */
     isSamplingEnabled: function(mode) {
         return (mode == this.modes.CPU_SAMPLING ||
-                mode == this.modes.RPC_AND_CPU_SAMPLING);
+                mode == this.modes.CPU_MEMORY_SAMPLING ||
+                mode == this.modes.RPC_AND_CPU_SAMPLING ||
+                mode == this.modes.RPC_AND_CPU_MEMORY_SAMPLING);
+    },
+
+    /**
+     * True if profiler mode has enabled memory sampling
+     */
+    isMemorySamplingEnabled: function(mode) {
+        return (mode == this.modes.CPU_MEMORY_SAMPLING ||
+                mode == this.modes.RPC_AND_CPU_MEMORY_SAMPLING);
     },
 
     /**
@@ -158,11 +171,29 @@ var GaeMiniProfiler = {
             var jCorner = this.renderCorner(data[ix]);
 
             if (!jCorner.data("attached")) {
-                $('body')
+                if ($.cookiePlugin("g-m-p-hidden") === "true") {
+                    jCorner
+                        .children(".g-m-p-corner-toggle.g-m-p-open")
+                        .show();
+
+                    jCorner
+                        .children(".g-m-p-corner-toggle.g-m-p-close")
+                        .hide();
+
+                    jCorner
+                        .children(".g-m-p-corner .entry")
+                        .hide();
+                }
+
+                $(document.body)
                     .append(jCorner)
                     .click(function(e) { return GaeMiniProfiler.collapse(e); });
                 jCorner
                     .data("attached", true);
+
+                jCorner
+                    .children(".g-m-p-corner-toggle")
+                    .click(this.toggleCorner);
             }
 
             if (fShowImmediately)
@@ -182,7 +213,7 @@ var GaeMiniProfiler = {
         if (!attempts) {
             attempts = 0;
         }
-        
+
         // We only try to get the request log three times.
         if (attempts > 2) {
             $(".g-m-p .request-log-" + data.logging_request_id)
@@ -200,7 +231,7 @@ var GaeMiniProfiler = {
 
                 if (!requestLogData) {
                     // The request log may not be available just yet, because
-                    // App Engine may still be writing its logs. We'll wait a 
+                    // App Engine may still be writing its logs. We'll wait a
                     // sec and try up to three times.
                     setTimeout(function() {
                         GaeMiniProfiler.fetchRequestLog(data, attempts + 1);
@@ -225,6 +256,10 @@ var GaeMiniProfiler = {
                     requestLogData));
     },
 
+    /**
+     * Collapses the larger informational tab that shows up after clicking on
+     * one of the entries.
+     */
     collapse: function(e) {
         if ($(".g-m-p").is(":visible")) {
             $(".g-m-p").slideUp("fast");
@@ -245,7 +280,7 @@ var GaeMiniProfiler = {
             $(document).keyup(function(e) { if (e.which == 27) GaeMiniProfiler.collapse() });
 
         jPopup = this.renderPopup(data);
-        $('body').append(jPopup);
+        $(document.body).append(jPopup);
 
         var jCorner = $(".g-m-p-corner");
         jCorner.find(".expanded").removeClass("expanded");
@@ -344,6 +379,8 @@ var GaeMiniProfiler = {
         var cpuSelector = "#cpu_disabled";
         if (this.isInstrumentedEnabled(mode)) {
             cpuSelector = "#cpu_instrumented";
+        } else if (this.isMemorySamplingEnabled(mode)) {
+            cpuSelector = "#cpu_memory_sampling";
         } else if (this.isSamplingEnabled(mode)) {
             cpuSelector = "#cpu_sampling";
         } else if (this.isLineByLineEnabled(mode)) {
@@ -354,7 +391,7 @@ var GaeMiniProfiler = {
         if (this.isRpcEnabled(mode)) {
             rpcSelector = "#rpc_enabled";
         }
-        
+
         $(elLink).closest(".g-m-p").find(".settings")
             .find(cpuSelector)
                 .attr("checked", "checked")
@@ -401,6 +438,20 @@ var GaeMiniProfiler = {
         return $("#profilerTemplate").tmplPlugin(data);
     },
 
+    toggleCorner: function(elLink) {
+        if ($(elLink.currentTarget).hasClass("g-m-p-open")) {
+            $(".g-m-p-corner-toggle.g-m-p-open").hide();
+            $(".g-m-p-corner-toggle.g-m-p-close").show();
+            $(".g-m-p-corner .entry").show();
+            $.cookiePlugin("g-m-p-hidden", "false", {path: '/', expires: 365});
+        } else {
+            $(".g-m-p-corner-toggle.g-m-p-open").show();
+            $(".g-m-p-corner-toggle.g-m-p-close").hide();
+            $(".g-m-p-corner .entry").hide();
+            $.cookiePlugin("g-m-p-hidden", "true", {path: '/', expires: 365});
+        }
+    },
+
     renderCorner: function(data) {
         if (data && data.profiler_results) {
             var jCorner = $(".g-m-p-corner");
@@ -418,13 +469,19 @@ var GaeMiniProfiler = {
                 perfClass = "slow";
             }
 
-            return jCorner.append(
-                    $("#profilerCornerEntryTemplate")
-                        .tmplPlugin(data)
-                        .addClass(fFirst ? "" : "ajax")
-                        .addClass(perfClass)
-                        .click(function() { GaeMiniProfiler.expand(this, data); return false; })
-                    );
+            var jCornerEntry = $("#profilerCornerEntryTemplate")
+                .tmplPlugin(data)
+                .addClass(fFirst ? "" : "ajax")
+                .addClass(perfClass)
+                .click(function() { GaeMiniProfiler.expand(this, data); return false; });
+
+            // If the open button is visible, we're currently closed.
+            var fShouldHide = $(".g-m-p-corner-toggle.g-m-p-open").is(":visible");
+            if (fShouldHide) {
+                jCornerEntry.hide();
+            }
+
+            return jCorner.append(jCornerEntry);
         }
         return null;
     },
@@ -439,6 +496,7 @@ var GaeMiniProfiler = {
         var jSlider = searchRoot.find(".sample-number-slider");
         var jTable = searchRoot.find(".sample-table");
         var jSampleTimestamp = searchRoot.find(".sample-timestamp");
+        var jSampleMemoryDiv = searchRoot.find(".sample-memory-display");
         var jIgnoreFramesInput = searchRoot.find(".ignore-frames-slider");
         var jIgnoredFrames = searchRoot.find(".sample-num-frames-ignored");
         var jTableBody = jTable.find("tbody");
@@ -454,9 +512,71 @@ var GaeMiniProfiler = {
         jSampleTimestamp.html(samples[sampleIndex].timestamp_ms + "ms");
         jIgnoredFrames.html(minFrameToDisplay);
 
+        if (jSampleMemoryDiv.length) {
+            if (samples[sampleIndex].prev_memory_sample_index) {
+                var prevIndex = samples[sampleIndex].prev_memory_sample_index;
+                var prevSample = samples[prevIndex];
+            }
+
+            if (samples[sampleIndex].memory_used) {
+                // We sample memory after sampling the stack, so if this sample
+                // includes memory, use it as the "next sample" for
+                // memory-diffing purposes.
+                var nextSample = samples[sampleIndex];
+            } else if (samples[sampleIndex].next_memory_sample_index) {
+                var nextIndex = samples[sampleIndex].next_memory_sample_index;
+                var nextSample = samples[nextIndex];
+            }
+
+            GaeMiniProfiler.renderMemoryInfo(prevSample, nextSample,
+                                             jSampleMemoryDiv);
+        }
+
         GaeMiniProfiler.buildSampleTable(jTable,
                 samples[sampleIndex].stack_frames, frameNames,
                 minFrameToDisplay);
+    },
+
+    /**
+     * Renders a memory sample into the template placeholders in the given div.
+     *
+     * prevSample and nextSample could be undefined, if there is no previous or
+     * next sample.  In this case, we continue to display a dummy sample line,
+     * so that the stuff below doesn't move up and down.
+     */
+    renderMemoryInfo: function(prevSample, nextSample, div) {
+        var jPrev = div.find(".sample-memory-prev");
+        var jNext = div.find(".sample-memory-next");
+        var jDiff = div.find(".sample-memory-diff");
+
+        if (prevSample) {
+            var memoryUsed = Math.round(prevSample.memory_used * 100) / 100;
+            jPrev.html(memoryUsed + " MB at " +
+                       prevSample.timestamp_ms + "ms");
+        } else {
+            jPrev.html("(no previous sample)");
+        }
+
+        if (nextSample) {
+            var memoryUsed = Math.round(nextSample.memory_used * 100) / 100;
+            jNext.html(memoryUsed + " MB at " +
+                       nextSample.timestamp_ms + "ms");
+        } else {
+            jNext.html("(no next sample)");
+        }
+
+        if (prevSample && nextSample) {
+            var diff = nextSample.memory_used - prevSample.memory_used;
+            diff = Math.round(diff * 100) / 100;
+            if (diff >= 0) {
+                diff = "+" + diff;
+            }
+            var time = nextSample.timestamp_ms - prevSample.timestamp_ms;
+            time = Math.round(time * 10) / 10;
+            jDiff.html(diff + " MB over " + time + "ms");
+        } else {
+            jDiff.html("(n/a)");
+        }
     },
 
     /**
@@ -514,7 +634,7 @@ var GaeMiniProfilerTemplate = {
             this._promise = $.get("/gae_mini_profiler/static/js/template.tmpl",
                 function(data) {
                     if (data) {
-                        $('body').append(data);
+                        $(document.body).append(data);
                     }
                 });
         }

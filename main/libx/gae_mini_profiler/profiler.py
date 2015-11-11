@@ -33,12 +33,9 @@ import pickle
 import config
 import util
 
-dev_server = os.environ["SERVER_SOFTWARE"].startswith("Devel")
-
-
 class CurrentRequestId(object):
     """A per-request identifier accessed by other pieces of mini profiler.
-    
+
     It is managed as part of the middleware lifecycle."""
 
     # In production use threading.local() to make request ids threadsafe
@@ -50,14 +47,14 @@ class CurrentRequestId(object):
 
     @staticmethod
     def get():
-        if dev_server:
+        if util.dev_server:
             return CurrentRequestId.dev_server_request_id
         else:
             return CurrentRequestId._local.request_id
 
     @staticmethod
     def set(request_id):
-        if dev_server:
+        if util.dev_server:
             CurrentRequestId.dev_server_request_id = request_id
         else:
             CurrentRequestId._local.request_id = request_id
@@ -65,11 +62,11 @@ class CurrentRequestId(object):
 
 class Mode(object):
     """Possible profiler modes.
-    
+
     TODO(kamens): switch this from an enum to a more sensible bitmask or other
     alternative that supports multiple settings without an exploding number of
     enums.
-    
+
     TODO(kamens): when this is changed from an enum to a bitmask or other more
     sensible object with multiple properties, we should pass a Mode object
     around the rest of this code instead of using a simple string that this
@@ -79,10 +76,13 @@ class Mode(object):
     SIMPLE = "simple"  # Simple start/end timing for the request as a whole
     CPU_INSTRUMENTED = "instrumented"  # Profile all function calls
     CPU_SAMPLING = "sampling"  # Sample call stacks
+    CPU_MEMORY_SAMPLING = "memory_sampling"  # Sample call stacks and memory
     CPU_LINEBYLINE = "linebyline" # Line-by-line profiling on a subset of functions
     RPC_ONLY = "rpc"  # Profile all RPC calls
     RPC_AND_CPU_INSTRUMENTED = "rpc_instrumented" # RPCs and all fxn calls
     RPC_AND_CPU_SAMPLING = "rpc_sampling" # RPCs and sample call stacks
+    RPC_AND_CPU_MEMORY_SAMPLING = "rpc_memory_sampling" # RPCs and sample call
+                                                        # stacks and memory
     RPC_AND_CPU_LINEBYLINE = "rpc_linebyline" # RPCs and line-by-line profiling
 
     @staticmethod
@@ -98,12 +98,14 @@ class Mode(object):
                 Mode.SIMPLE,
                 Mode.CPU_INSTRUMENTED,
                 Mode.CPU_SAMPLING,
+                Mode.CPU_MEMORY_SAMPLING,
                 Mode.CPU_LINEBYLINE,
                 Mode.RPC_ONLY,
                 Mode.RPC_AND_CPU_INSTRUMENTED,
                 Mode.RPC_AND_CPU_SAMPLING,
+                Mode.RPC_AND_CPU_MEMORY_SAMPLING,
                 Mode.RPC_AND_CPU_LINEBYLINE]):
-            mode = Mode.RPC_AND_CPU_INSTRUMENTED
+            mode = Mode.RPC_ONLY
 
         return mode
 
@@ -112,13 +114,22 @@ class Mode(object):
         return mode in [
                 Mode.RPC_ONLY,
                 Mode.RPC_AND_CPU_INSTRUMENTED,
-                Mode.RPC_AND_CPU_SAMPLING]
+                Mode.RPC_AND_CPU_SAMPLING,
+                Mode.RPC_AND_CPU_MEMORY_SAMPLING]
 
     @staticmethod
     def is_sampling_enabled(mode):
         return mode in [
                 Mode.CPU_SAMPLING,
-                Mode.RPC_AND_CPU_SAMPLING]
+                Mode.CPU_MEMORY_SAMPLING,
+                Mode.RPC_AND_CPU_SAMPLING,
+                Mode.RPC_AND_CPU_MEMORY_SAMPLING]
+
+    @staticmethod
+    def is_memory_sampling_enabled(mode):
+        return mode in [
+                Mode.CPU_MEMORY_SAMPLING,
+                Mode.RPC_AND_CPU_MEMORY_SAMPLING]
 
     @staticmethod
     def is_instrumented_enabled(mode):
@@ -180,11 +191,43 @@ class SharedStatsHandler(RequestHandler):
         self.response.out.write(template)
 
 
+class CpuProfileStatsHandler(RequestHandler):
+    """Handler for retrieving the (sampling) profile in .cpuprofile format.
+
+    This is compatible with Chrome's flamechart profile viewer.
+    """
+    def get(self):
+        request_id = self.request.get("request_id")
+        request_stats = RequestStats.get(request_id)
+
+        if not request_stats:
+            self.response.out.write(
+                "Profiler stats no longer exist for this request.")
+            return
+
+        if not 'cpuprofile' in request_stats.profiler_results:
+            self.response.out.write(
+                "No .cpuprofile available for this profile")
+            return
+
+        self.response.headers['Content-Disposition'] = (
+            'attachment; filename="gmp-%s-%s.cpuprofile"' %
+            (request_stats.start_dt.strftime('%Y%m%d-%H%M%S'),
+             str(request_id)))
+        # Setting content-type to application/json caused Safari (7.1,
+        # at least) to append a .json extension to the existing
+        # .cpuprofile extension so we use an agnostic content-type.
+        self.response.headers['Content-type'] = ("application/octet-stream; "
+                                                 "charset=utf-8")
+        self.response.out.write(
+            request_stats.profiler_results['cpuprofile'].encode("utf-8"))
+
+
 class RequestLogHandler(RequestHandler):
     """Handler for retrieving and returning a RequestLog from GAE's logs API.
 
     See https://developers.google.com/appengine/docs/python/logs.
-    
+
     This GET request accepts a logging_request_id via query param that matches
     the request_id from an App Engine RequestLog.
 
@@ -218,7 +261,7 @@ class RequestLogHandler(RequestHandler):
 
         # Log fetching doesn't work on the dev server and this data isn't
         # relevant in dev server's case, so we return a simple fake response.
-        if dev_server:
+        if util.dev_server:
             dict_request_log = {
                 "pending_ms": 0,
                 "loading_request": False,
@@ -263,8 +306,8 @@ class RequestStatsHandler(RequestHandler):
         self.response.out.write(json.dumps(list_request_stats))
 
 class RequestStats(object):
-
-    serialized_properties = ["request_id", "url", "s_dt",
+    
+    serialized_properties = ["request_id", "url",
                              "profiler_results", "appstats_results", "mode",
                              "temporary_redirect", "logs",
                              "logging_request_id"]
@@ -282,7 +325,7 @@ class RequestStats(object):
             self.url += "?%s" % environ.get("QUERY_STRING")
 
         self.mode = profiler.mode
-        self.s_dt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.start_dt = datetime.datetime.now()
 
         self.profiler_results = profiler.profiler_results()
         self.appstats_results = profiler.appstats_results()
@@ -322,6 +365,17 @@ class RequestStats(object):
         return "__gae_mini_profiler_request_%s" % request_id
 
 
+class ThreadFilter(logging.Filter):
+    "A logging filter that only allows records from the creating thread."""
+
+    def __init__(self, *args, **kwargs):
+        super(ThreadFilter, self).__init__(*args, **kwargs)
+        self.currentThreadIdent = threading.current_thread().ident
+
+    def filter(self, _):
+        return self.currentThreadIdent == threading.current_thread().ident
+
+
 class RequestProfiler(object):
     """Profile a single request."""
 
@@ -333,7 +387,6 @@ class RequestProfiler(object):
         self.linebyline_prof = None
         self.appstats_prof = None
         self.temporary_redirect = False
-        self.handler = None
         self.logs = None
         self.logging_request_id = self.get_logging_request_id()
         self.start = None
@@ -341,7 +394,7 @@ class RequestProfiler(object):
 
     def profiler_results(self):
         """Return the CPU profiler results for this request, if any.
-        
+
         This will return a dictionary containing results for either the
         sampling profiler, instrumented profiler results, or a simple
         start/stop timer if both profilers are disabled."""
@@ -353,6 +406,7 @@ class RequestProfiler(object):
             results.update(self.instrumented_prof.results())
         elif self.sampling_prof:
             results.update(self.sampling_prof.results())
+            results["cpuprofile"] = self.sampling_prof.cpuprofile_results()
         elif self.linebyline_prof:
             results.update(self.linebyline_prof.results())
 
@@ -405,7 +459,8 @@ class RequestProfiler(object):
         else:
 
             # Add logging handler
-            self.add_handler()
+            handler = RequestProfiler.create_handler()
+            logging.getLogger().addHandler(handler)
 
             if Mode.is_rpc_enabled(self.mode):
                 # Turn on AppStats monitoring for this request
@@ -430,7 +485,11 @@ class RequestProfiler(object):
                 # this file so we don't bring in a lot of imports for users who
                 # don't have the profiler enabled.
                 from . import sampling_profiler
-                self.sampling_prof = sampling_profiler.Profile()
+                if Mode.is_memory_sampling_enabled(self.mode):
+                    self.sampling_prof = sampling_profiler.Profile(
+                        memory_sample_rate=25)
+                else:
+                    self.sampling_prof = sampling_profiler.Profile()
                 result_fxn_wrapper = self.sampling_prof.run
 
             elif Mode.is_linebyline_enabled(self.mode):
@@ -463,10 +522,9 @@ class RequestProfiler(object):
                 for value in result:
                     yield value
 
-            self.logs = self.get_logs(self.handler)
-            logging.getLogger().removeHandler(self.handler)
-            self.handler.stream.close()
-            self.handler = None
+            logging.getLogger().removeHandler(handler)
+            self.logs = self.get_logs(handler)
+            handler.stream.close()
 
         self.end = time.time()
 
@@ -475,17 +533,12 @@ class RequestProfiler(object):
 
     def get_logging_request_id(self):
         """Return the identifier for this request used by GAE's logservice.
-        
+
         This logging_request_id will match the request_id parameter of a
         RequestLog object stored in App Engine's logging API:
         https://developers.google.com/appengine/docs/python/logs/
         """
         return os.environ.get("REQUEST_LOG_ID", None)
-
-    def add_handler(self):
-        if self.handler is None:
-            self.handler = RequestProfiler.create_handler()
-        logging.getLogger().addHandler(self.handler)
 
     @staticmethod
     def create_handler():
@@ -500,6 +553,7 @@ class RequestProfiler(object):
             '%(message)s',
         ]), '%M:%S.')
         handler.setFormatter(formatter)
+        handler.addFilter(ThreadFilter())
         return handler
 
     @staticmethod
@@ -569,7 +623,7 @@ class ProfilerWSGIMiddleware(object):
             old_memcache_add = memcache.add
             old_memcache_delete = memcache.delete
             memcache.add = (lambda key, *args, **kwargs:
-                                (True if key == recording.lock_key() 
+                                (True if key == recording.lock_key()
                                  else old_memcache_add(key, *args, **kwargs)))
             memcache.delete = (lambda key, *args, **kwargs:
                                    (True if key == recording.lock_key()

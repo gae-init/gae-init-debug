@@ -1,4 +1,5 @@
 .g-m-p-corner {
+    position: absolute;
     background: #e7e7e7;
     border-collapse: collapse;
     cursor: pointer;
@@ -16,9 +17,22 @@
     color: #444;
 }
 
-.g-m-p-corner .entry {  	
+.g-m-p-corner-toggle {
+    font-size: 0.6em;
+}
+
+.g-m-p-corner-toggle.g-m-p-open {
+    margin: 0px;
+    display: none;
+}
+
+.g-m-p-corner-toggle.g-m-p-close {
+    margin: -5px;
+}
+
+.g-m-p-corner .entry {
     display: table-row;
-    height: auto;  	
+    height: auto;
     margin: auto;
     white-space: nowrap;
 }
@@ -90,7 +104,7 @@
     color: #eee;
 }
 
-.g-m-p-corner .likely-duplicates {
+.g-m-p-corner .warning-icon {
     background: #bbb;
     border-radius: 6px;
     bottom: 1px;
@@ -100,16 +114,22 @@
     position: relative;
 }
 
-.g-m-p-corner .slow .likely-duplicates {
+.g-m-p-corner .slow .warning-icon {
     background: #bb0;
 }
 
-.g-m-p-corner .very-slow .likely-duplicates {
+.g-m-p-corner .very-slow .warning-icon {
     background: #500;
     color: #fff;
 }
 
+.g-m-p-corner .warning-icon.very-high-memory {
+    background: #e3b;
+    color: #fff;
+}
+
 .g-m-p {
+    position: fixed;
     background: #fff;
     min-width: 410px;
     padding: 9px;
@@ -133,7 +153,6 @@
 }
 
 .g-m-p, .g-m-p-corner {
-    position: absolute;
     left: 9px;
     top: 0;
 
@@ -417,6 +436,16 @@
     width: 200px;
     display: inline-block;
     vertical-align: middle;
+}
+
+.g-m-p .sample-memory-line {
+    width: 300px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.g-m-p .sample-memory{
+    padding-right: 10px;
 }
 
 .g-m-p .ignore-frames-display {

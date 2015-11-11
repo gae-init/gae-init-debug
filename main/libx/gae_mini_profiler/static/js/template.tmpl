@@ -1,5 +1,8 @@
 <script id="profilerCornerTemplate" type="text/x-jquery-tmpl">
-    <div class="g-m-p-corner"></div>
+    <div class="g-m-p-corner">
+        <div class="g-m-p-corner-toggle g-m-p-open">&#9660;</div>
+        <div class="g-m-p-corner-toggle g-m-p-close">&#9650;</div>
+    </div>
 </script>
 
 <script id="profilerCornerEntryTemplate" type="text/x-jquery-tmpl">
@@ -7,7 +10,14 @@
         <div class="entry-icons">
             {{if temporary_redirect}}&#8623;{{/if}}
             {{if appstats_results.likely_dupes}}
-                <span class="likely-duplicates" title="Duplicate RPCs">D</span>
+                <span class="warning-icon likely-duplicates" title="Duplicate RPCs">D</span>
+            {{/if}}
+            {{if GaeMiniProfiler.isMemorySamplingEnabled(mode)}}
+                {{if profiler_results.end_memory - profiler_results.start_memory > 10 }}
+                    <span class="warning-icon very-high-memory" title="Very high memory request">M</span>
+                {{else profiler_results.end_memory - profiler_results.start_memory > 1 }}
+                    <span class="warning-icon high-memory" title="High memory request">M</span>
+                {{/if}}
             {{/if}}
         </div>
         <div class="total-time">
@@ -36,6 +46,13 @@
         <div class="title">
             <div class="header">
                 ${profiler_results.total_time} <span class="ms">ms</span>: <span class="url" title="${url}">${url}</span>
+                {{if GaeMiniProfiler.isMemorySamplingEnabled(mode)}}
+                    <br/>
+                    Memory:
+                    ${profiler_results.start_memory} MB (start),
+                    ${profiler_results.max_memory} MB (max),
+                    ${profiler_results.end_memory} MB (end)
+                {{/if}}
             </div>
         </div>
 
@@ -49,6 +66,7 @@
                     <td>
                         <input type="radio" id="cpu_instrumented" name="cpu" value="instrumented"/><label for="cpu_instrumented"> instrumented</label><br>
                         <input type="radio" id="cpu_sampling" name="cpu" value="sampling"/><label for="cpu_sampling"> sampling</label><br>
+                        <input type="radio" id="cpu_memory_sampling" name="cpu" value="memory_sampling"/><label for="cpu_memory_sampling"> sampling with memory</label><br>
                         <input type="radio" id="cpu_linebyline" name="cpu" value="linebyline"/><label for="cpu_linebyline"> line-by-line</label><br>
                         <input type="radio" id="cpu_disabled" name="cpu" value=""/><label for="cpu_disabled"> disabled</label>
                     </td>
@@ -150,9 +168,24 @@
             {{else GaeMiniProfiler.isSamplingEnabled(mode)}}
 
             <div class="sampling-profiler-help">
-                How to use the
+                {{if navigator.userAgent.indexOf("Chrome/") !== -1}}
+                <a target="_cpuprofile"
+                   href="/gae_mini_profiler/static/chrome/profile.html?request_id=${encodeURIComponent(request_id)}"
+                   title="View the profile as a flame chart.">
+                    Visualize
+                </a>
+                {{else}}
+                <span title="View the profile as a flame chart.">Visualize in Chrome</span>
+                {{/if}}
+                &mdash;
+                <a
+                href="/gae_mini_profiler/shared/cpuprofile?request_id=${encodeURIComponent(request_id)}"
+                title="Download the .cpuprofile file to load into Google Chrome DevTools' flame chart viewer.">
+                    Download
+                </a> &mdash;
+                Understanding the
                 <div class="sampling-profiler-help-popup" style="display:inline-block">
-                    <a href="javascript:void()" class="uses_script">sampling profile viewer</a>
+                    <a href="javascript:void()" class="uses_script">sampled profile</a>
                     <div class="sampling-profiler-help-text">
                         Cross-reference with
                         {{if GaeMiniProfiler.isRpcEnabled(mode)}}
@@ -180,6 +213,24 @@
                     ${profiler_results.samples[profiler_results.total_samples - 1].timestamp_ms}ms
                 </span>
             </div>
+            {{if GaeMiniProfiler.isMemorySamplingEnabled(mode)}}
+                <div class="sample-memory-display">
+                    <span class="sample-memory-line">
+                        <b>Previous memory sample:</b>
+                        <span class="sample-memory-prev"></span>
+                    </span>
+                    <br/>
+                    <span class="sample-memory-line">
+                        <b>Next memory sample:</b>
+                        <span class="sample-memory-next"></span>
+                    </span>
+                    <br/>
+                    <span class="sample-memory-line">
+                        <b>Change:</b>
+                        <span class="sample-memory-diff"></span>
+                    </span>
+                </div>
+            {{/if}}
             <div>
                 <span class="ignore-frames-display"><b>Hide frames:</b>
                     <span class="sample-num-frames-ignored"></span></span></span>
