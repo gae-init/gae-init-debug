@@ -20,6 +20,8 @@ class Config(model.Base, model.ConfigAuth):
   email_authentication = ndb.BooleanProperty(default=False, verbose_name='Email authentication for sign in/sign up')
   feedback_email = ndb.StringProperty(default='')
   flask_secret_key = ndb.StringProperty(default=util.uuid())
+  letsencrypt_challenge = ndb.StringProperty(default='', verbose_name=u'Let’s Encrypt Challenge')
+  letsencrypt_response = ndb.StringProperty(default='', verbose_name=u'Let’s Encrypt Response')
   notify_on_new_user = ndb.BooleanProperty(default=True, verbose_name='Send an email notification when a user signs up')
   recaptcha_private_key = ndb.StringProperty(default='', verbose_name='Private Key')
   recaptcha_public_key = ndb.StringProperty(default='', verbose_name='Public Key')
@@ -43,21 +45,23 @@ class Config(model.Base, model.ConfigAuth):
     return cls.get_or_insert('master')
 
   FIELDS = {
-      'analytics_id': fields.String,
-      'announcement_html': fields.String,
-      'announcement_type': fields.String,
-      'anonymous_recaptcha': fields.Boolean,
-      'brand_name': fields.String,
-      'check_unique_email': fields.Boolean,
-      'email_authentication': fields.Boolean,
-      'feedback_email': fields.String,
-      'flask_secret_key': fields.String,
-      'notify_on_new_user': fields.Boolean,
-      'recaptcha_private_key': fields.String,
-      'recaptcha_public_key': fields.String,
-      'salt': fields.String,
-      'verify_email': fields.Boolean,
-    }
+    'analytics_id': fields.String,
+    'announcement_html': fields.String,
+    'announcement_type': fields.String,
+    'anonymous_recaptcha': fields.Boolean,
+    'brand_name': fields.String,
+    'check_unique_email': fields.Boolean,
+    'email_authentication': fields.Boolean,
+    'feedback_email': fields.String,
+    'flask_secret_key': fields.String,
+    'letsencrypt_challenge': fields.String,
+    'letsencrypt_response': fields.String,
+    'notify_on_new_user': fields.Boolean,
+    'recaptcha_private_key': fields.String,
+    'recaptcha_public_key': fields.String,
+    'salt': fields.String,
+    'verify_email': fields.Boolean,
+  }
 
   FIELDS.update(model.Base.FIELDS)
   FIELDS.update(model.ConfigAuth.FIELDS)
