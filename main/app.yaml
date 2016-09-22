@@ -16,6 +16,9 @@ libraries:
 - name: jinja2
   version: latest
 
+- name: setuptools
+  version: latest
+
 error_handlers:
 - file: templates/error_static.html
 
