@@ -1,6 +1,6 @@
 # gae-init-debug
 
-[![Slack Status](https://gae-init-slack.herokuapp.com/badge.svg)](https://gae-init-slack.herokuapp.com)
+[![Slack Status](https://gae-init-slack.herokuapp.com/badge.svg)](https://gae-init-slack.herokuapp.com) [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
 
 **gae-init-debug** is the easiest boilerplate to kick start new applications on Google App Engine using Python, Flask, RESTful, Bootstrap, Flask Debug-toolbar, gae_mini_profiler and tons of other cool features.
 
